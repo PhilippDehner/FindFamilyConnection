@@ -1,0 +1,7 @@
+C:\Users\philb\source\repos\FindFamilyConnection\FindFamilyConnection\bin\Debug\FindFamilyConnection.exe.config
+C:\Users\philb\source\repos\FindFamilyConnection\FindFamilyConnection\bin\Debug\FindFamilyConnection.exe
+C:\Users\philb\source\repos\FindFamilyConnection\FindFamilyConnection\bin\Debug\FindFamilyConnection.pdb
+C:\Users\philb\source\repos\FindFamilyConnection\FindFamilyConnection\obj\Debug\FindFamilyConnection.csprojAssemblyReference.cache
+C:\Users\philb\source\repos\FindFamilyConnection\FindFamilyConnection\obj\Debug\FindFamilyConnection.csproj.CoreCompileInputs.cache
+C:\Users\philb\source\repos\FindFamilyConnection\FindFamilyConnection\obj\Debug\FindFamilyConnection.exe
+C:\Users\philb\source\repos\FindFamilyConnection\FindFamilyConnection\obj\Debug\FindFamilyConnection.pdb
