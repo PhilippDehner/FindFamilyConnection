@@ -20,8 +20,8 @@ namespace FindFamilyConnection
 		}
 
 		public ConnectionType connectionType;
-		public int personA;
-		public int personB;
+		public Person personA;
+		public Person personB;
 	}
 
 	public class ConnectionPath : Connection
@@ -33,7 +33,7 @@ namespace FindFamilyConnection
 
 		public ConnectionPath() { }
 
-		public ConnectionPath(int A, int B, ConnectionType ct, bool po)
+		public ConnectionPath(Person A, Person B, ConnectionType ct, bool po)
 		{
 			personA = A;
 			personB = B;
@@ -67,12 +67,6 @@ namespace FindFamilyConnection
 			this.id = id;
 		}
 
-		public Person(int id)
-		{
-			this.id = id;
-			peop
-			}
-
 		public Person() { }
 	}
 	public class Program
@@ -84,12 +78,12 @@ namespace FindFamilyConnection
 			XmlDocument doc = new XmlDocument();
 			while (!doc.HasChildNodes)
 			{
-				doc = helpclass.Instance.LoadFileToDoc();
+				doc = Helpclass.Instance.LoadFileToDoc();
 			}
 			XmlNode root = doc.GetElementsByTagName("GEDCOM").Item(0);
 
 			// Get Persons
-			List<Person> People = new List<Person>();
+			Helpclass.Instance.People = new List<Person>();
 			XmlNodeList xmlPeople = root.SelectNodes("IndividualRec");
 			foreach (XmlNode xmlPerson in xmlPeople)
 			{
@@ -97,7 +91,7 @@ namespace FindFamilyConnection
 				string lastName = xmlPerson.SelectSingleNode("IndivName/NamePart[@Type='surname']").InnerText;
 				int id = Convert.ToInt32(xmlPerson.SelectSingleNode("@Id").InnerText.Substring(1));
 				Person person = new Person(firstName, lastName, id);
-				People.Add(person);
+				Helpclass.Instance.People.Add(person);
 			}
 
 			List<Connection> connections = new List<Connection>();
@@ -115,7 +109,7 @@ namespace FindFamilyConnection
 
 				if (m != -1 && f != -1)
 				{
-					Connection ParentParent = new Connection { connectionType = Connection.ConnectionType.ParentParant, personA = f, personB = m };
+					Connection ParentParent = new Connection { connectionType = Connection.ConnectionType.ParentParant, personA = Helpclass.Instance.GetPersonById(f), personB = Helpclass.Instance.GetPersonById(m) };
 					connections.Add(ParentParent);
 				}
 
@@ -128,14 +122,14 @@ namespace FindFamilyConnection
 					XmlNode c_ = xmlChild.SelectSingleNode("Link/@Ref");
 					if (c_ != null && f != -1)
 					{
-						ParentChild1.personA = f;
-						ParentChild1.personB = Convert.ToInt32(c_.InnerText.Substring(1));
+						ParentChild1.personA = Helpclass.Instance.GetPersonById(f);
+						ParentChild1.personB = Helpclass.Instance.GetPersonById(Convert.ToInt32(c_.InnerText.Substring(1)));
 						connections.Add(ParentChild1);
 					}
 					if (c_ != null && m != -1)
 					{
-						ParentChild2.personA = m;
-						ParentChild2.personB = Convert.ToInt32(c_.InnerText.Substring(1));
+						ParentChild2.personA = Helpclass.Instance.GetPersonById(m);
+						ParentChild2.personB = Helpclass.Instance.GetPersonById(Convert.ToInt32(c_.InnerText.Substring(1)));
 						connections.Add(ParentChild2);
 					}
 				}
@@ -147,8 +141,8 @@ namespace FindFamilyConnection
 			{
 				Connection marriage = new Connection { connectionType = Connection.ConnectionType.Marriage };
 				XmlNodeList people = xmlMarriage.SelectNodes("Participant/Link/@Ref");
-				marriage.personA = Convert.ToInt32(people[0].InnerText.Substring(1));
-				marriage.personB = Convert.ToInt32(people[1].InnerText.Substring(1));
+				marriage.personA = Helpclass.Instance.GetPersonById(Convert.ToInt32(people[0].InnerText.Substring(1)));
+				marriage.personB = Helpclass.Instance.GetPersonById(Convert.ToInt32(people[1].InnerText.Substring(1)));
 				connections.Add(marriage);
 			}
 
@@ -156,42 +150,49 @@ namespace FindFamilyConnection
 			// Get start person & end person
 			Console.WriteLine("\nGeben Sie den Nachnamen ODER Vornamen für die Startperson ein.");
 			Person FirstPerson;
-			if (!helpclass.Instance.Testphase) FirstPerson = helpclass.Instance.ChoosePerson(People);
-			else FirstPerson = People[200];
+			if (!Helpclass.Instance.Testphase) FirstPerson = Helpclass.Instance.ChoosePerson(Helpclass.Instance.People);
+			else FirstPerson = Helpclass.Instance.People[200];
 			Console.WriteLine("\nGeben Sie den Nachnamen ODER Vornamen für die Zielperson ein.");
 			Person LastPerson;
-			if (!helpclass.Instance.Testphase) LastPerson = helpclass.Instance.ChoosePerson(People);
-			else LastPerson = People[300];
+			if (!Helpclass.Instance.Testphase) LastPerson = Helpclass.Instance.ChoosePerson(Helpclass.Instance.People);
+			else LastPerson = Helpclass.Instance.People[300];
 			Console.WriteLine(FirstPerson.firstName + " " + FirstPerson.lastName + " und " + LastPerson.firstName + " " + LastPerson.lastName + " wurden ausgewählt.");
 
+			
 			// Find connection
+			
 			List<List<ConnectionPath>> FamilyPaths = new List<List<ConnectionPath>>();
-			ConnectionPath FirstPersonC = new ConnectionPath { connectionType = Connection.ConnectionType.FirstPerson, personA = FirstPerson.id, personB = FirstPerson.id, personOrder = true };
+			ConnectionPath FirstPersonC = new ConnectionPath { connectionType = Connection.ConnectionType.FirstPerson, personA = FirstPerson, personB = FirstPerson, personOrder = true };
 			FamilyPaths.Add(new List<ConnectionPath>());
 			FamilyPaths[0].Add(FirstPersonC);
 
+			// Iterieren, bis alle Pfade als letzte Person die Zielperson haben
 			bool allLastPeopleFound = false;
 			List<List<ConnectionPath>> newFamilyPaths = new List<List<ConnectionPath>>();
 			while (!allLastPeopleFound)
 			{
+				// Alle Pfade durchgehen
 				allLastPeopleFound = true;
 				foreach (List<ConnectionPath> path in FamilyPaths)
 				{
-					int lastPathPerson;   // Letzte Person im aktuellen Pfad
+					// Letzte Person im aktuellen Pfad speichern
+					Person lastPathPerson;  
 					if (path[path.Count - 1].personOrder)
 						lastPathPerson = path[path.Count - 1].personA;
 					else
 						lastPathPerson = path[path.Count - 1].personB;
 
-					// Connections to lastPathPerson
-					List<Connection> foundConnections = connections.FindAll(x => x.personA == lastPathPerson || x.personB == lastPathPerson);
+					// Alle Connections zu lastPathPerson im aktuellen Pfad finden
+					List<Connection> foundConnections = connections.FindAll(x => x.personA.id == lastPathPerson.id || x.personB.id == lastPathPerson.id);
 
+					// alle zur letzten Pfadperson gefundenen Connections durchgehen
 					bool FirstConnection = false;
 					foreach (Connection foundConnection in foundConnections)
 					{
 						bool personOrderFoundConnection = lastPathPerson == foundConnection.personA;
+						
 						// Wenn letzte Person in einem Pfad nicht die Zielperson ist:
-						if (lastPathPerson != LastPerson.id)
+						if (lastPathPerson.id != LastPerson.id)
 						{
 							allLastPeopleFound = false;
 							ConnectionPath newConnectionPath = new ConnectionPath(foundConnection, personOrderFoundConnection);
@@ -199,7 +200,7 @@ namespace FindFamilyConnection
 							// Pruefe, ob Person schon im Pfad vorhanden ist.
 							bool PersonAlreadyInPath = false;
 							foreach (ConnectionPath connectionPath in path)
-								if (connectionPath.personA == foundConnection.personA || connectionPath.personB == foundConnection.personA)
+								if (connectionPath.personA == lastPathPerson || connectionPath.personB == lastPathPerson)
 									PersonAlreadyInPath = true;
 
 							if (!PersonAlreadyInPath)
@@ -232,21 +233,30 @@ namespace FindFamilyConnection
 		}
 	}
 
-	public class helpclass
+	public class Helpclass
 	{
+		#region properties
 		public bool Testphase = false;
 
-		private static helpclass _instance;
-		public static helpclass Instance
+		private static Helpclass _instance;
+		public static Helpclass Instance
 		{
 			get
 			{
 				if (_instance == null)
 				{
-					_instance = new helpclass();
+					_instance = new Helpclass();
 				}
 				return _instance;
 			}
+		}
+
+		public List<Person> People;
+		#endregion
+
+		public Person GetPersonById(int id)
+		{
+			return People.Find(x => x.id == id);
 		}
 
 		public string NameInput()
@@ -271,20 +281,20 @@ namespace FindFamilyConnection
 			return input;
 		}
 
-		public Program.Person ChoosePerson(List<Program.Person> people)
+		public Person ChoosePerson(List<Person> people)
 		{
-			List<Program.Person> containingPeople = new List<Program.Person>();
+			List<Person> containingPeople = new List<Person>();
 			while (true)
 			{
 				string nameInput = NameInput();
 				containingPeople.Clear();
-				foreach (Program.Person person in people)
+				foreach (Person person in people)
 					if (person.firstName.Contains(nameInput) || person.lastName.Contains(nameInput))
 						containingPeople.Add(person);
 				if (containingPeople.Count != 0) break;
 				Console.WriteLine("\nName konnte nicht gefunden werden! Neuer Versuch:");
 			}
-			Program.Person chosenPerson = new Program.Person(); ;
+			Person chosenPerson;
 			if (containingPeople.Count > 1)
 			{
 				Console.WriteLine();
