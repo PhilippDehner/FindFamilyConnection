@@ -9,38 +9,74 @@ using System.Xml.Linq;
 
 namespace FindFamilyConnection
 {
-	public struct Person
+	public class Connection
+	{
+		public enum ConnectionType
+		{
+			ParentChild,
+			ParentParant,
+			Marriage,
+			FirstPerson
+		}
+
+		public ConnectionType connectionType;
+		public int personA;
+		public int personB;
+	}
+
+	public class ConnectionPath : Connection
+	{
+		/// <summary>
+		/// If personA is first person in path = true, if personB = false
+		/// </summary>
+		public bool personOrder;
+
+		public ConnectionPath() { }
+
+		public ConnectionPath(int A, int B, ConnectionType ct, bool po)
+		{
+			personA = A;
+			personB = B;
+			connectionType = ct;
+			personOrder = po;
+		}
+
+		/// <summary>
+		/// Constructor for new ConnectionPath with Connection and new order
+		/// </summary>
+		/// <param name="c">Connection</param>
+		/// <param name="p">PersonOrder</param>
+		public ConnectionPath(Connection c, bool p)
+		{
+			personA = c.personA;
+			personB = c.personB;
+			connectionType = c.connectionType;
+			personOrder = p;
+		}
+	}
+	public class Person
 	{
 		public int id;
 		public string firstName;
 		public string lastName;
 
-		public Person(string firstName, string lastName, int id) : this()
+		public Person(string firstName, string lastName, int id)
 		{
 			this.firstName = firstName;
 			this.lastName = lastName;
 			this.id = id;
 		}
-	}
 
-	enum ConnectionType
-	{
-		ParentChild,
-		ParentParant,
-		Marriage,
-		FirstPerson
-	}
+		public Person(int id)
+		{
+			this.id = id;
+			peop
+			}
 
-	struct Connection
-	{
-		public ConnectionType connectionType;
-		public int person1;
-		public int person2;
+		public Person() { }
 	}
-
 	public class Program
 	{
-
 		static void Main(string[] args)
 		{
 			Console.WriteLine("Start FindFamilyConnection\n");
@@ -79,27 +115,27 @@ namespace FindFamilyConnection
 
 				if (m != -1 && f != -1)
 				{
-					Connection ParentParent = new Connection { connectionType = ConnectionType.ParentParant, person1 = f, person2 = m };
+					Connection ParentParent = new Connection { connectionType = Connection.ConnectionType.ParentParant, personA = f, personB = m };
 					connections.Add(ParentParent);
 				}
 
 				XmlNodeList xmlChilds = xmlFamiliy.SelectNodes("Child");
 				foreach (XmlNode xmlChild in xmlChilds)
 				{
-					Connection ParentChild1 = new Connection { connectionType = ConnectionType.ParentChild };
-					Connection ParentChild2 = new Connection { connectionType = ConnectionType.ParentChild };
+					Connection ParentChild1 = new Connection { connectionType = Connection.ConnectionType.ParentChild };
+					Connection ParentChild2 = new Connection { connectionType = Connection.ConnectionType.ParentChild };
 
 					XmlNode c_ = xmlChild.SelectSingleNode("Link/@Ref");
 					if (c_ != null && f != -1)
 					{
-						ParentChild1.person1 = f;
-						ParentChild1.person2 = Convert.ToInt32(c_.InnerText.Substring(1));
+						ParentChild1.personA = f;
+						ParentChild1.personB = Convert.ToInt32(c_.InnerText.Substring(1));
 						connections.Add(ParentChild1);
 					}
 					if (c_ != null && m != -1)
 					{
-						ParentChild2.person1 = m;
-						ParentChild2.person2 = Convert.ToInt32(c_.InnerText.Substring(1));
+						ParentChild2.personA = m;
+						ParentChild2.personB = Convert.ToInt32(c_.InnerText.Substring(1));
 						connections.Add(ParentChild2);
 					}
 				}
@@ -109,10 +145,10 @@ namespace FindFamilyConnection
 			XmlNodeList xmlMarriages = root.SelectNodes("EventRec[@Type='marriage']");
 			foreach (XmlNode xmlMarriage in xmlMarriages)
 			{
-				Connection marriage = new Connection { connectionType = ConnectionType.Marriage };
+				Connection marriage = new Connection { connectionType = Connection.ConnectionType.Marriage };
 				XmlNodeList people = xmlMarriage.SelectNodes("Participant/Link/@Ref");
-				marriage.person1 = Convert.ToInt32(people[0].InnerText.Substring(1));
-				marriage.person2 = Convert.ToInt32(people[1].InnerText.Substring(1));
+				marriage.personA = Convert.ToInt32(people[0].InnerText.Substring(1));
+				marriage.personB = Convert.ToInt32(people[1].InnerText.Substring(1));
 				connections.Add(marriage);
 			}
 
@@ -129,29 +165,76 @@ namespace FindFamilyConnection
 			Console.WriteLine(FirstPerson.firstName + " " + FirstPerson.lastName + " und " + LastPerson.firstName + " " + LastPerson.lastName + " wurden ausgewählt.");
 
 			// Find connection
-			//List<List<Connection>> FamilyPaths = new List<List<Connection>>();
-			List<Connection> FamilyPath1 = new List<Connection>();
-			Connection FirstPersonC = new Connection { connectionType = ConnectionType.FirstPerson, person1 = FirstPerson.id, person2 = FirstPerson.id };
-			FamilyPath1.Add(FirstPersonC);
-			List<Connection> firstPersonConnections = connections.FindAll(x => x.person1 == FirstPerson.id || x.person2 == FirstPerson.id);
-			foreach(Connection connection in firstPersonConnections)
-			{
-				int otherPersonId = 0;
-				if (connection.person1 == FirstPerson.id)
-					otherPersonId = connection.person2;
-				else
-					otherPersonId = connection.person1;
-				var test = FamilyPath1.FindAll(x => x.person1 == otherPersonId || x.person2 == otherPersonId);
-				//if (FamilyPaths[0].Find(x=>x.person1==otherPersonId||x.person2==otherPersonId)==null)
-				var test2 = FamilyPath1.FindAll(x => x.person1 == otherPersonId || x.person2 == otherPersonId);
+			List<List<ConnectionPath>> FamilyPaths = new List<List<ConnectionPath>>();
+			ConnectionPath FirstPersonC = new ConnectionPath { connectionType = Connection.ConnectionType.FirstPerson, personA = FirstPerson.id, personB = FirstPerson.id, personOrder = true };
+			FamilyPaths.Add(new List<ConnectionPath>());
+			FamilyPaths[0].Add(FirstPersonC);
 
+			bool allLastPeopleFound = false;
+			List<List<ConnectionPath>> newFamilyPaths = new List<List<ConnectionPath>>();
+			while (!allLastPeopleFound)
+			{
+				allLastPeopleFound = true;
+				foreach (List<ConnectionPath> path in FamilyPaths)
+				{
+					int lastPathPerson;   // Letzte Person im aktuellen Pfad
+					if (path[path.Count - 1].personOrder)
+						lastPathPerson = path[path.Count - 1].personA;
+					else
+						lastPathPerson = path[path.Count - 1].personB;
+
+					// Connections to lastPathPerson
+					List<Connection> foundConnections = connections.FindAll(x => x.personA == lastPathPerson || x.personB == lastPathPerson);
+
+					bool FirstConnection = false;
+					foreach (Connection foundConnection in foundConnections)
+					{
+						bool personOrderFoundConnection = lastPathPerson == foundConnection.personA;
+						// Wenn letzte Person in einem Pfad nicht die Zielperson ist:
+						if (lastPathPerson != LastPerson.id)
+						{
+							allLastPeopleFound = false;
+							ConnectionPath newConnectionPath = new ConnectionPath(foundConnection, personOrderFoundConnection);
+
+							// Pruefe, ob Person schon im Pfad vorhanden ist.
+							bool PersonAlreadyInPath = false;
+							foreach (ConnectionPath connectionPath in path)
+								if (connectionPath.personA == foundConnection.personA || connectionPath.personB == foundConnection.personA)
+									PersonAlreadyInPath = true;
+
+							if (!PersonAlreadyInPath)
+							{
+								if (FirstConnection)
+								{
+									path.Add(newConnectionPath);
+									FirstConnection = true;
+								}
+								else
+								{
+									newFamilyPaths.Add(path);
+									newFamilyPaths[newFamilyPaths.Count - 1].RemoveAt(newFamilyPaths[newFamilyPaths.Count - 1].Count - 1);
+									newFamilyPaths[newFamilyPaths.Count - 1].Add(newConnectionPath);
+								}
+							}
+							else
+							{
+
+							}
+						}
+					}
+				}
+				foreach (List<ConnectionPath> newFamilyPath in newFamilyPaths)
+				{
+					FamilyPaths.Add(newFamilyPath);
+				}
+				newFamilyPaths.Clear();
 			}
 		}
 	}
 
 	public class helpclass
 	{
-		public bool Testphase = true;
+		public bool Testphase = false;
 
 		private static helpclass _instance;
 		public static helpclass Instance
@@ -188,20 +271,20 @@ namespace FindFamilyConnection
 			return input;
 		}
 
-		public Person ChoosePerson(List<Person> people)
+		public Program.Person ChoosePerson(List<Program.Person> people)
 		{
-			List<Person> containingPeople = new List<Person>();
+			List<Program.Person> containingPeople = new List<Program.Person>();
 			while (true)
 			{
 				string nameInput = NameInput();
 				containingPeople.Clear();
-				foreach (Person person in people)
+				foreach (Program.Person person in people)
 					if (person.firstName.Contains(nameInput) || person.lastName.Contains(nameInput))
 						containingPeople.Add(person);
 				if (containingPeople.Count != 0) break;
 				Console.WriteLine("\nName konnte nicht gefunden werden! Neuer Versuch:");
 			}
-			Person chosenPerson = new Person(); ;
+			Program.Person chosenPerson = new Program.Person(); ;
 			if (containingPeople.Count > 1)
 			{
 				Console.WriteLine();
