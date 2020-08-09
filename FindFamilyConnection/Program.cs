@@ -31,6 +31,27 @@ namespace FindFamilyConnection
 		/// </summary>
 		public bool personOrder;
 
+		public class Person
+		{
+			public int id;
+			public string firstName;
+			public string lastName;
+
+			public Person(string firstName, string lastName, int id)
+			{
+				this.firstName = firstName;
+				this.lastName = lastName;
+				this.id = id;
+			}
+
+			public Person() { }
+
+			public override string ToString()
+			{
+				return this.firstName + " " + this.lastName;
+			}
+		}
+
 		public ConnectionPath() { }
 
 		public ConnectionPath(Person A, Person B, ConnectionType ct, bool po)
@@ -54,26 +75,7 @@ namespace FindFamilyConnection
 			personOrder = p;
 		}
 	}
-	public class Person
-	{
-		public int id;
-		public string firstName;
-		public string lastName;
-
-		public Person(string firstName, string lastName, int id)
-		{
-			this.firstName = firstName;
-			this.lastName = lastName;
-			this.id = id;
-		}
-
-		public Person() { }
-
-		public override string ToString()
-		{
-			return this.firstName + " " + this.lastName;
-		}
-	}
+	
 	public class Program
 	{
 
@@ -164,11 +166,11 @@ namespace FindFamilyConnection
 			Console.WriteLine("\nGeben Sie den Nachnamen ODER Vornamen für die Startperson ein.");
 			Person FirstPerson;
 			if (!Helpclass.Instance.Testphase) FirstPerson = Helpclass.Instance.ChoosePerson(Helpclass.Instance.People);
-			else FirstPerson = Helpclass.Instance.GetPersonById(6);
+			else FirstPerson = Helpclass.Instance.GetPersonById(4);
 			Console.WriteLine("\nGeben Sie den Nachnamen ODER Vornamen für die Zielperson ein.");
 			Person LastPerson;
 			if (!Helpclass.Instance.Testphase) LastPerson = Helpclass.Instance.ChoosePerson(Helpclass.Instance.People);
-			else LastPerson = Helpclass.Instance.GetPersonById(2);
+			else LastPerson = Helpclass.Instance.GetPersonById(3);
 			Console.WriteLine("\n" + FirstPerson.ToString() + " und " + LastPerson.ToString() + " wurden ausgewählt.");
 			#endregion
 
@@ -181,15 +183,17 @@ namespace FindFamilyConnection
 
 			// Iterieren, bis alle Pfade als letzte Person die Zielperson haben
 			bool allLastPeopleFound = false;
-			List<List<ConnectionPath>> newFamilyPaths = new List<List<ConnectionPath>>();
+			//List<List<ConnectionPath>> newFamilyPaths = new List<List<ConnectionPath>>();
+			//List<List<ConnectionPath>> deleteFamilyPaths = new List<List<ConnectionPath>>();
 			while (!allLastPeopleFound)
 			{
 				// Alle Pfade durchgehen
 				allLastPeopleFound = true;
-				foreach (List<ConnectionPath> path in FamilyPaths)
+				for (int j = 0; j < FamilyPaths.Count; j++)
 				{
+					List<ConnectionPath> path = FamilyPaths[j];
 					// Letzte Person im aktuellen Pfad speichern
-					Person lastPathPerson; 
+					Person lastPathPerson;
 					if (path[path.Count - 1].personOrder)
 						lastPathPerson = path[path.Count - 1].personA;
 					else
@@ -203,8 +207,8 @@ namespace FindFamilyConnection
 					bool FirstConnectionDone = false;
 					foreach (Connection foundConnection in foundConnections)
 					{
-						bool personOrderFoundConnection = lastPathPerson.id == foundConnection.personA.id;
-						
+						bool personOrderFoundConnection = lastPathPerson.id != foundConnection.personA.id;
+
 						// Wenn letzte Person in einem Pfad nicht die Zielperson ist:
 						if (lastPathPerson.id != LastPerson.id)
 						{
@@ -214,7 +218,7 @@ namespace FindFamilyConnection
 							// Pruefe, ob neue Person schon im Pfad vorhanden ist.
 							bool PersonAlreadyInPath = false;
 							for (int i = 0; i < path.Count; i++)
-								if ((path[i].personA.id == newConnectionPath.personA.id && !newConnectionPath.personOrder|| path[i].personB.id == newConnectionPath.personB.id && newConnectionPath.personOrder) && i < path.Count - 1)
+								if ((path[i].personA.id == newConnectionPath.personA.id && !newConnectionPath.personOrder || path[i].personB.id == newConnectionPath.personB.id && newConnectionPath.personOrder) && i < path.Count - 1 && i > 1)
 									PersonAlreadyInPath = true;
 
 							if (!PersonAlreadyInPath)
@@ -226,9 +230,11 @@ namespace FindFamilyConnection
 								}
 								else
 								{
-									newFamilyPaths.Add(path);
+									List<ConnectionPath> newPath = new List<ConnectionPath>(path);
+									/*newFamilyPaths.Add(newPath);
 									newFamilyPaths[newFamilyPaths.Count - 1].RemoveAt(newFamilyPaths[newFamilyPaths.Count - 1].Count - 1);
-									newFamilyPaths[newFamilyPaths.Count - 1].Add(newConnectionPath);
+									newFamilyPaths[newFamilyPaths.Count - 1].Add(newConnectionPath);*/
+									FamilyPaths.Add(newPath);
 								}
 							}
 							else
@@ -239,11 +245,21 @@ namespace FindFamilyConnection
 						}
 					}
 				}
-				foreach (List<ConnectionPath> newFamilyPath in newFamilyPaths)
+				/*foreach (List<ConnectionPath> newFamilyPath in newFamilyPaths)
 				{
 					FamilyPaths.Add(newFamilyPath);
 				}
-				newFamilyPaths.Clear();
+				newFamilyPaths.Clear();*/
+			}
+
+			// Show Paths
+			foreach (List<ConnectionPath> path in FamilyPaths)
+			{
+				Console.WriteLine("\n");
+				foreach (ConnectionPath connection in path)
+				{
+					Console.WriteLine(connection.personA + "\t" + connection.connectionType.ToString());
+				}
 			}
 		}
 	}
@@ -330,7 +346,7 @@ namespace FindFamilyConnection
 			try
 			{
 				string filepath;
-				if (Testphase) filepath = "P:\\Sonstiges\\Ahnen\\Connections\\Minimal.xml";
+				if (Testphase) filepath = "P:\\Sonstiges\\Ahnen\\Connections\\Minimal_.xml";
 				else filepath = Console.ReadLine();
 				FileStream fs = File.OpenRead(filepath);
 				doc.Load(fs);
